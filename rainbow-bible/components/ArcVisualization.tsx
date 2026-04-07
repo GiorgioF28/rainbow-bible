@@ -1,5 +1,4 @@
 import React, { useCallback } from 'react';
-import { StyleSheet, useWindowDimensions } from 'react-native';
 import Svg, {
   Defs,
   RadialGradient,
@@ -16,23 +15,30 @@ import Svg, {
 import { BOOKS } from '../data/books';
 import { CONNECTIONS } from '../data/connections';
 import { FilterType } from '../data/types';
-import { bookX, DEFAULT_BASELINE, MARGIN_L } from '../utils/arcGeometry';
+import { bookX, DEFAULT_BASELINE, MARGIN_L, findNearestArc } from '../utils/arcGeometry';
+import { getArcOpacity } from '../utils/filters';
 import { COLORS } from '../theme/colors';
 import ArcPath from './ArcPath';
+import { useWindowDimensions } from 'react-native';
 
 interface ArcVisualizationProps {
   activeFilter: FilterType;
   selectedId: number | null;
   onArcPress: (id: number) => void;
-  /**
-   * When provided (landscape mode), the SVG fills this exact pixel height.
-   * The viewBox height and baseline are computed proportionally.
-   */
   svgDisplayHeight?: number;
 }
 
 const VIEW_W = 900;
 const DEFAULT_VIEW_H = 340;
+
+// NT books start at index 39; stagger in 3 rows so they don't overlap.
+// AT books are spread enough for a single row.
+function labelRow(bookIndex: number, isNT: boolean): number {
+  if (!isNT) return 0; // single row for AT
+  return bookIndex % 3;  // 0, 1, 2
+}
+
+const ROW_Y_OFFSETS = [12, 22, 32]; // SVG units below baseline per row
 
 const ArcVisualization: React.FC<ArcVisualizationProps> = ({
   activeFilter,
@@ -42,38 +48,42 @@ const ArcVisualization: React.FC<ArcVisualizationProps> = ({
 }) => {
   const { width: screenWidth } = useWindowDimensions();
 
-  const handleArcPress = useCallback(
-    (id: number) => {
-      onArcPress(id);
-    },
-    [onArcPress]
-  );
-
-  // In landscape we use full screen width; in portrait we leave 16px padding
-  const svgDisplayWidth = svgDisplayHeight
-    ? screenWidth
-    : screenWidth - 16;
-
+  const svgDisplayWidth = svgDisplayHeight ? screenWidth : screenWidth - 16;
   const svgDisplayH = svgDisplayHeight
     ? svgDisplayHeight
     : (svgDisplayWidth * DEFAULT_VIEW_H) / VIEW_W;
 
-  // viewBox height scales proportionally with the display dimensions
   const viewBoxH = svgDisplayHeight
     ? Math.round(VIEW_W * svgDisplayHeight / svgDisplayWidth)
     : DEFAULT_VIEW_H;
 
-  // Baseline: leave 50 viewBox units at bottom for ticks + labels
-  const baseline = svgDisplayHeight
-    ? viewBoxH - 50
-    : DEFAULT_BASELINE;
+  // Leave 45 SVG units below baseline for staggered labels (3 rows × ~10u + padding)
+  const baseline = svgDisplayHeight ? viewBoxH - 45 : DEFAULT_BASELINE;
+
+  // Visible connections under the current filter (for nearest-arc search)
+  const visibleConnections = CONNECTIONS.filter((c) =>
+    activeFilter === 'all' || c.type === activeFilter
+  );
+
+  const handleBgPress = useCallback(
+    (event: any) => {
+      const x = event.nativeEvent.locationX;
+      const y = event.nativeEvent.locationY;
+      const nearestId = findNearestArc(x, y, visibleConnections, BOOKS, baseline);
+      if (nearestId !== null) {
+        onArcPress(nearestId);
+      }
+    },
+    [visibleConnections, baseline, onArcPress]
+  );
+
+  let ntBookIndex = 0;
 
   return (
     <Svg
       width={svgDisplayWidth}
       height={svgDisplayH}
       viewBox={`0 0 ${VIEW_W} ${viewBoxH}`}
-      style={styles.svg}
     >
       <Defs>
         <RadialGradient id="bgGlow" cx="50%" cy="100%" r="60%">
@@ -89,8 +99,13 @@ const ArcVisualization: React.FC<ArcVisualizationProps> = ({
         </Filter>
       </Defs>
 
-      {/* Background */}
-      <Rect width={VIEW_W} height={viewBoxH} fill="url(#bgGlow)" />
+      {/* Background — captures all taps and routes to nearest arc */}
+      <Rect
+        width={VIEW_W}
+        height={viewBoxH}
+        fill="url(#bgGlow)"
+        onPress={handleBgPress}
+      />
 
       {/* Spine line */}
       <Line
@@ -102,7 +117,7 @@ const ArcVisualization: React.FC<ArcVisualizationProps> = ({
         strokeWidth={1}
       />
 
-      {/* Arcs */}
+      {/* Arcs — onPress removed; all taps handled by background */}
       <G>
         {CONNECTIONS.map((conn) => {
           const fromBook = BOOKS.find((b) => b.id === conn.from);
@@ -116,34 +131,37 @@ const ArcVisualization: React.FC<ArcVisualizationProps> = ({
               toBook={toBook}
               activeFilter={activeFilter}
               selectedId={selectedId}
-              onPress={handleArcPress}
+              onPress={onArcPress}
               baseline={baseline}
             />
           );
         })}
       </G>
 
-      {/* Book ticks and labels */}
+      {/* Book ticks and staggered labels */}
       <G>
-        {BOOKS.map((book) => {
+        {BOOKS.map((book, idx) => {
           const x = bookX(book);
-          const labelColor = book.testament === 'NT' ? '#c49de0' : COLORS.inkDim;
+          const isNT = book.testament === 'NT';
+          const labelColor = isNT ? '#c49de0' : COLORS.inkDim;
+          const row = isNT ? labelRow(ntBookIndex++, true) : 0;
+          const yOffset = ROW_Y_OFFSETS[row];
           return (
             <G key={book.id}>
               <Line
                 x1={x}
                 y1={baseline}
                 x2={x}
-                y2={baseline + 6}
+                y2={baseline + 5}
                 stroke={COLORS.inkDim}
                 strokeWidth={0.5}
                 opacity={0.5}
               />
               <SvgText
                 x={x}
-                y={baseline + 16}
+                y={baseline + yOffset}
                 fill={labelColor}
-                fontSize={5}
+                fontSize={isNT ? 4.5 : 5}
                 fontFamily="Cinzel_400Regular"
                 textAnchor="middle"
               >
@@ -156,11 +174,5 @@ const ArcVisualization: React.FC<ArcVisualizationProps> = ({
     </Svg>
   );
 };
-
-const styles = StyleSheet.create({
-  svg: {
-    alignSelf: 'center',
-  },
-});
 
 export default ArcVisualization;

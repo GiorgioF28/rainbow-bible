@@ -58,9 +58,9 @@ const ZoomableView: React.FC<ZoomableViewProps> = ({ children, style, onZoomChan
 
   const resetAll = () => {
     Animated.parallel([
-      Animated.spring(anim.baseScale, { toValue: 1, useNativeDriver: true }),
-      Animated.spring(anim.baseTx,    { toValue: 0, useNativeDriver: true }),
-      Animated.spring(anim.baseTy,    { toValue: 0, useNativeDriver: true }),
+      Animated.spring(anim.baseScale, { toValue: 1, useNativeDriver: false }),
+      Animated.spring(anim.baseTx,    { toValue: 0, useNativeDriver: false }),
+      Animated.spring(anim.baseTy,    { toValue: 0, useNativeDriver: false }),
     ]).start();
     anim.pinchScale.setValue(1);
     anim.panTx.setValue(0);
@@ -75,7 +75,7 @@ const ZoomableView: React.FC<ZoomableViewProps> = ({ children, style, onZoomChan
   const onPinchEvent = useMemo(
     () => Animated.event(
       [{ nativeEvent: { scale: anim.pinchScale } }],
-      { useNativeDriver: true }
+      { useNativeDriver: false }
     ),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     []
@@ -84,7 +84,7 @@ const ZoomableView: React.FC<ZoomableViewProps> = ({ children, style, onZoomChan
   const onPanEvent = useMemo(
     () => Animated.event(
       [{ nativeEvent: { translationX: anim.panTx, translationY: anim.panTy } }],
-      { useNativeDriver: true }
+      { useNativeDriver: false }
     ),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     []
