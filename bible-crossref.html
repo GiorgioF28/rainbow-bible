@@ -1,0 +1,680 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Biblia Connexa</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;900&family=EB+Garamond:ital,wght@0,400;0,500;1,400&display=swap');
+
+  :root {
+    --parchment: #1a1208;
+    --gold: #c9a84c;
+    --gold-light: #e8c97a;
+    --crimson: #8b1a1a;
+    --ink: #f0e6cc;
+    --ink-dim: #a89060;
+    --panel-bg: #0d0b06;
+    --arc-ot: #7ab3d4;
+    --arc-nt: #b47dd4;
+    --arc-law: #d4a77a;
+    --arc-prophet: #7ad4a7;
+    --arc-wisdom: #d4d47a;
+    --arc-gospel: #d47a7a;
+    --arc-epistle: #a77ad4;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--parchment);
+    color: var(--ink);
+    font-family: 'EB Garamond', serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Grain overlay */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+    pointer-events: none;
+    z-index: 1000;
+    opacity: 0.4;
+  }
+
+  header {
+    text-align: center;
+    padding: 2rem 1rem 1rem;
+    border-bottom: 1px solid rgba(201,168,76,0.2);
+  }
+
+  header h1 {
+    font-family: 'Cinzel', serif;
+    font-size: clamp(1.8rem, 4vw, 3rem);
+    font-weight: 900;
+    color: var(--gold);
+    letter-spacing: 0.15em;
+    text-shadow: 0 0 40px rgba(201,168,76,0.3);
+  }
+
+  header p {
+    color: var(--ink-dim);
+    font-style: italic;
+    font-size: 1rem;
+    margin-top: 0.3rem;
+    letter-spacing: 0.05em;
+  }
+
+  .controls {
+    display: flex;
+    justify-content: center;
+    gap: 1rem;
+    padding: 1rem;
+    flex-wrap: wrap;
+    border-bottom: 1px solid rgba(201,168,76,0.1);
+  }
+
+  .filter-btn {
+    background: transparent;
+    border: 1px solid rgba(201,168,76,0.3);
+    color: var(--ink-dim);
+    font-family: 'Cinzel', serif;
+    font-size: 0.65rem;
+    letter-spacing: 0.1em;
+    padding: 0.4rem 0.9rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-transform: uppercase;
+  }
+
+  .filter-btn:hover, .filter-btn.active {
+    background: rgba(201,168,76,0.15);
+    border-color: var(--gold);
+    color: var(--gold-light);
+  }
+
+  .main-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 1rem;
+    gap: 1.5rem;
+  }
+
+  /* SVG visualization */
+  #viz-container {
+    width: 100%;
+    max-width: 900px;
+    position: relative;
+  }
+
+  #viz-svg {
+    width: 100%;
+    height: auto;
+    display: block;
+  }
+
+  .arc-path {
+    fill: none;
+    stroke-width: 0.8;
+    opacity: 0.45;
+    cursor: pointer;
+    transition: opacity 0.2s, stroke-width 0.2s;
+  }
+
+  .arc-path:hover {
+    opacity: 1;
+    stroke-width: 2.2;
+  }
+
+  .arc-path.highlighted {
+    opacity: 1;
+    stroke-width: 2.5;
+  }
+
+  .arc-path.dimmed {
+    opacity: 0.08;
+  }
+
+  .book-label {
+    font-family: 'Cinzel', serif;
+    font-size: 5px;
+    fill: var(--ink-dim);
+    text-anchor: middle;
+  }
+
+  .book-tick {
+    stroke: var(--ink-dim);
+    stroke-width: 0.5;
+    opacity: 0.5;
+  }
+
+  /* Book spine line */
+  .spine-line {
+    stroke: rgba(201,168,76,0.4);
+    stroke-width: 1;
+  }
+
+  /* Detail Panel */
+  #detail-panel {
+    width: 100%;
+    max-width: 900px;
+    background: var(--panel-bg);
+    border: 1px solid rgba(201,168,76,0.25);
+    padding: 2rem;
+    display: none;
+    animation: panelIn 0.35s ease;
+    position: relative;
+  }
+
+  #detail-panel.visible { display: block; }
+
+  @keyframes panelIn {
+    from { opacity: 0; transform: translateY(12px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .panel-close {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+    background: none;
+    border: 1px solid rgba(201,168,76,0.3);
+    color: var(--ink-dim);
+    width: 28px;
+    height: 28px;
+    cursor: pointer;
+    font-size: 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+  }
+  .panel-close:hover { border-color: var(--gold); color: var(--gold); }
+
+  .verses-grid {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    gap: 1.5rem;
+    align-items: start;
+    margin-bottom: 1.8rem;
+  }
+
+  .verse-block {
+    border-left: 2px solid var(--gold);
+    padding-left: 1rem;
+  }
+
+  .verse-ref {
+    font-family: 'Cinzel', serif;
+    font-size: 0.7rem;
+    letter-spacing: 0.1em;
+    color: var(--gold);
+    text-transform: uppercase;
+    margin-bottom: 0.4rem;
+  }
+
+  .verse-text {
+    font-size: 1.05rem;
+    line-height: 1.7;
+    font-style: italic;
+    color: var(--ink);
+  }
+
+  .connector-symbol {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.3rem;
+    color: var(--gold);
+    font-size: 1.4rem;
+    padding-top: 1.5rem;
+    opacity: 0.6;
+  }
+
+  .connector-line {
+    width: 1px;
+    height: 30px;
+    background: linear-gradient(to bottom, transparent, var(--gold), transparent);
+  }
+
+  .explanation-block {
+    border-top: 1px solid rgba(201,168,76,0.2);
+    padding-top: 1.5rem;
+  }
+
+  .explanation-title {
+    font-family: 'Cinzel', serif;
+    font-size: 0.65rem;
+    letter-spacing: 0.2em;
+    color: var(--gold);
+    text-transform: uppercase;
+    margin-bottom: 0.8rem;
+  }
+
+  .explanation-text {
+    font-size: 1rem;
+    line-height: 1.8;
+    color: var(--ink-dim);
+  }
+
+  .meta-tags {
+    display: flex;
+    gap: 0.7rem;
+    flex-wrap: wrap;
+    margin-top: 1rem;
+  }
+
+  .meta-tag {
+    font-family: 'Cinzel', serif;
+    font-size: 0.6rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    padding: 0.25rem 0.7rem;
+    border: 1px solid;
+    border-radius: 0;
+  }
+
+  .tag-period { border-color: rgba(180,125,212,0.5); color: #c49de0; }
+  .tag-author { border-color: rgba(201,168,76,0.4); color: var(--gold); }
+  .tag-type { border-color: rgba(122,179,212,0.4); color: #9ac5e0; }
+
+  .legend {
+    display: flex;
+    gap: 1.2rem;
+    flex-wrap: wrap;
+    justify-content: center;
+    padding: 0.8rem;
+    border-top: 1px solid rgba(201,168,76,0.1);
+  }
+
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.7rem;
+    color: var(--ink-dim);
+    font-family: 'Cinzel', serif;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+  }
+
+  .legend-dot {
+    width: 12px;
+    height: 3px;
+    border-radius: 2px;
+  }
+
+  .hint {
+    text-align: center;
+    color: var(--ink-dim);
+    font-style: italic;
+    font-size: 0.9rem;
+    padding: 0.5rem;
+    animation: pulse 2.5s infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 0.5; }
+    50% { opacity: 1; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>BIBLIA CONNEXA</h1>
+  <p>Visualizzazione dei collegamenti tra i libri sacri</p>
+</header>
+
+<div class="controls">
+  <button class="filter-btn active" onclick="filterArcs('all')">Tutti i collegamenti</button>
+  <button class="filter-btn" onclick="filterArcs('prophecy')">Profezia → Compimento</button>
+  <button class="filter-btn" onclick="filterArcs('wisdom')">Saggezza</button>
+  <button class="filter-btn" onclick="filterArcs('gospel')">Vangeli</button>
+  <button class="filter-btn" onclick="filterArcs('epistle')">Epistole</button>
+</div>
+
+<div class="main-container">
+  <p class="hint">↑ Clicca su un arco colorato per esplorare il collegamento ↑</p>
+
+  <div id="viz-container">
+    <svg id="viz-svg" viewBox="0 0 900 340" xmlns="http://www.w3.org/2000/svg">
+      <!-- Background glow -->
+      <defs>
+        <radialGradient id="bgGlow" cx="50%" cy="100%" r="60%">
+          <stop offset="0%" stop-color="#2a1a05" stop-opacity="1"/>
+          <stop offset="100%" stop-color="#1a1208" stop-opacity="1"/>
+        </radialGradient>
+        <filter id="glow">
+          <feGaussianBlur stdDeviation="2" result="blur"/>
+          <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+        </filter>
+      </defs>
+      <rect width="900" height="340" fill="url(#bgGlow)"/>
+
+      <!-- Book baseline -->
+      <line x1="20" y1="290" x2="880" y2="290" class="spine-line"/>
+
+      <!-- Arcs and labels will be injected by JS -->
+      <g id="arcs-layer"></g>
+      <g id="labels-layer"></g>
+    </svg>
+  </div>
+
+  <div id="detail-panel">
+    <button class="panel-close" onclick="closePanel()">✕</button>
+    <div class="verses-grid">
+      <div class="verse-block">
+        <div class="verse-ref" id="ref-a"></div>
+        <div class="verse-text" id="text-a"></div>
+      </div>
+      <div class="connector-symbol">
+        <div class="connector-line"></div>
+        ⟷
+        <div class="connector-line"></div>
+      </div>
+      <div class="verse-block">
+        <div class="verse-ref" id="ref-b"></div>
+        <div class="verse-text" id="text-b"></div>
+      </div>
+    </div>
+    <div class="explanation-block">
+      <div class="explanation-title">Analisi del collegamento</div>
+      <div class="explanation-text" id="explanation"></div>
+      <div class="meta-tags" id="meta-tags"></div>
+    </div>
+  </div>
+
+  <div class="legend">
+    <div class="legend-item"><div class="legend-dot" style="background:#7ab3d4"></div>AT → AT</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#d4a77a"></div>Legge → Profezia</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#7ad4a7"></div>Profezia → Vangeli</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#d47a7a"></div>Vangeli → Epistole</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#a77ad4"></div>AT → NT</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#d4d47a"></div>Saggezza</div>
+  </div>
+</div>
+
+<script>
+// ─── DATA ────────────────────────────────────────────────────────────────────
+
+const BOOKS = [
+  { id:'Gen', name:'Genesi', pos:0.03, testament:'OT', genre:'law' },
+  { id:'Exo', name:'Esodo', pos:0.07, testament:'OT', genre:'law' },
+  { id:'Lev', name:'Levitico', pos:0.10, testament:'OT', genre:'law' },
+  { id:'Num', name:'Numeri', pos:0.13, testament:'OT', genre:'law' },
+  { id:'Deu', name:'Deuteron.', pos:0.16, testament:'OT', genre:'law' },
+  { id:'Jos', name:'Giosuè', pos:0.19, testament:'OT', genre:'history' },
+  { id:'Jdg', name:'Giudici', pos:0.22, testament:'OT', genre:'history' },
+  { id:'Rut', name:'Rut', pos:0.24, testament:'OT', genre:'history' },
+  { id:'1Sa', name:'1 Sam.', pos:0.27, testament:'OT', genre:'history' },
+  { id:'2Sa', name:'2 Sam.', pos:0.30, testament:'OT', genre:'history' },
+  { id:'1Ki', name:'1 Re', pos:0.32, testament:'OT', genre:'history' },
+  { id:'2Ki', name:'2 Re', pos:0.35, testament:'OT', genre:'history' },
+  { id:'1Ch', name:'1 Cron.', pos:0.37, testament:'OT', genre:'history' },
+  { id:'Ezr', name:'Esdra', pos:0.40, testament:'OT', genre:'history' },
+  { id:'Neh', name:'Neemia', pos:0.42, testament:'OT', genre:'history' },
+  { id:'Job', name:'Giobbe', pos:0.45, testament:'OT', genre:'wisdom' },
+  { id:'Psa', name:'Salmi', pos:0.48, testament:'OT', genre:'wisdom' },
+  { id:'Pro', name:'Proverbi', pos:0.51, testament:'OT', genre:'wisdom' },
+  { id:'Ecc', name:'Ecclesiaste', pos:0.54, testament:'OT', genre:'wisdom' },
+  { id:'Isa', name:'Isaia', pos:0.57, testament:'OT', genre:'prophecy' },
+  { id:'Jer', name:'Geremia', pos:0.60, testament:'OT', genre:'prophecy' },
+  { id:'Eze', name:'Ezechiele', pos:0.63, testament:'OT', genre:'prophecy' },
+  { id:'Dan', name:'Daniele', pos:0.66, testament:'OT', genre:'prophecy' },
+  { id:'Hos', name:'Osea', pos:0.68, testament:'OT', genre:'prophecy' },
+  { id:'Mic', name:'Michea', pos:0.70, testament:'OT', genre:'prophecy' },
+  { id:'Mal', name:'Malachia', pos:0.72, testament:'OT', genre:'prophecy' },
+  { id:'Mat', name:'Matteo', pos:0.76, testament:'NT', genre:'gospel' },
+  { id:'Mar', name:'Marco', pos:0.79, testament:'NT', genre:'gospel' },
+  { id:'Luk', name:'Luca', pos:0.81, testament:'NT', genre:'gospel' },
+  { id:'Joh', name:'Giovanni', pos:0.84, testament:'NT', genre:'gospel' },
+  { id:'Act', name:'Atti', pos:0.86, testament:'NT', genre:'history' },
+  { id:'Rom', name:'Romani', pos:0.88, testament:'NT', genre:'epistle' },
+  { id:'1Co', name:'1 Cor.', pos:0.90, testament:'NT', genre:'epistle' },
+  { id:'Gal', name:'Galati', pos:0.91, testament:'NT', genre:'epistle' },
+  { id:'Eph', name:'Efesini', pos:0.92, testament:'NT', genre:'epistle' },
+  { id:'Heb', name:'Ebrei', pos:0.94, testament:'NT', genre:'epistle' },
+  { id:'Rev', name:'Apocalisse', pos:0.97, testament:'NT', genre:'prophecy' },
+];
+
+const CONNECTIONS = [
+  {
+    from:'Gen', to:'Joh', type:'prophecy', color:'#a77ad4',
+    refA:'Genesi 3:15', refB:'Giovanni 3:16',
+    textA:'«Io porrò inimicizia tra te e la donna, tra la tua progenie e la sua progenie: questa ti schiaccerà la testa e tu le ferirai il calcagno.»',
+    textB:'«Dio infatti ha tanto amato il mondo da dare il suo Figlio unigenito, perché chiunque crede in lui non vada perduto, ma abbia la vita eterna.»',
+    explanation:'Il cosiddetto "protovangelo" di Genesi 3:15 è considerato la prima promessa messianica della Bibbia. La "progenie della donna" che schiaccia il serpente è interpretata dalla tradizione cristiana come prefigurazione di Gesù Cristo. Giovanni 3:16 rappresenta il compimento di questa promessa: il Figlio di Dio incarnato vince definitivamente il peccato originale. Il tempo che separa questi testi è di circa 1.400 anni di tradizione orale e scritta.',
+    author_a:'Mosè (attr.) — X-XIII sec. a.C.', author_b:'Giovanni Apostolo — 90-100 d.C.',
+    period:'~1.500 anni di distanza', link_type:'Profezia → Compimento'
+  },
+  {
+    from:'Isa', to:'Mat', type:'prophecy', color:'#7ad4a7',
+    refA:'Isaia 7:14', refB:'Matteo 1:23',
+    textA:'«Pertanto il Signore stesso vi darà un segno: Ecco, la vergine concepirà e partorirà un figlio, e lo chiamerà Emmanuele.»',
+    textB:'«Ecco, la vergine concepirà e partorirà un figlio al quale sarà dato il nome di Emmanuele, che significa Dio con noi.»',
+    explanation:'Matteo cita esplicitamente Isaia 7:14 come profezia adempiuta nella nascita di Gesù. Questa è una delle "citazioni di compimento" più studiate del NT. Isaia scrisse nel VIII secolo a.C., Matteo nel I secolo d.C. — circa 700 anni dopo. Il termine ebraico "almah" (giovane donna/vergine) e la sua traduzione greca "parthenos" nella Settanta sono al centro di uno dei dibattiti teologici più antichi del cristianesimo.',
+    author_a:'Isaia — VIII sec. a.C.', author_b:'Matteo Apostolo — 60-80 d.C.',
+    period:'~750 anni di distanza', link_type:'Profezia → Vangelo'
+  },
+  {
+    from:'Psa', to:'Mat', type:'wisdom', color:'#d4d47a',
+    refA:'Salmo 22:1', refB:'Matteo 27:46',
+    textA:'«Dio mio, Dio mio, perché mi hai abbandonato? Sei lontano dalla mia salvezza e dalle parole del mio grido.»',
+    textB:'«Verso le tre, Gesù gridò a gran voce: "Elì, Elì, lemà sabactàni?", che significa: Dio mio, Dio mio, perché mi hai abbandonato?»',
+    explanation:'Il Salmo 22, attribuito a Davide, descrive in modo straordinariamente dettagliato la sofferenza del crocifisso — le mani e i piedi trafitti, le vesti sorteggiate — secoli prima che la crocifissione fosse praticata dai Romani. Gesù cita questo salmo sulla croce nella sua lingua originale aramaica. L\'intero Salmo 22 è visto come una profezia messianica: inizia con la desolazione dell\'abbandono e termina con la vittoria e la lode universale.',
+    author_a:'Davide (attr.) — X sec. a.C.', author_b:'Matteo Apostolo — 60-80 d.C.',
+    period:'~1.000 anni di distanza', link_type:'Saggezza / Profezia → Vangelo'
+  },
+  {
+    from:'Gen', to:'Rev', type:'prophecy', color:'#a77ad4',
+    refA:'Genesi 2:9', refB:'Apocalisse 22:2',
+    textA:'«Il Signore Dio fece spuntare dal suolo ogni sorta di alberi graditi alla vista e buoni da mangiare, e l\'albero della vita in mezzo al giardino.»',
+    textB:'«In mezzo alla piazza della città e da una parte e dall\'altra del fiume si trova un albero di vita, che produce dodici frutti, dando il suo frutto ogni mese.»',
+    explanation:'La Bibbia si apre con l\'albero della vita nel Giardino dell\'Eden (Genesi) e si chiude con lo stesso albero nella Nuova Gerusalemme (Apocalisse). Questa inclusione letteraria — una delle più grandi della letteratura mondiale — abbraccia 66 libri scritti in ~1.500 anni da ~40 autori. L\'albero che l\'umanità perde nel peccato originale viene ristabilito nella redenzione finale: la Bibbia è strutturata come un unico racconto coerente di perdita e restituzione.',
+    author_a:'Mosè (attr.) — XIII sec. a.C.', author_b:'Giovanni Apostolo — 95-96 d.C.',
+    period:'~1.400 anni di distanza', link_type:'Inclusione letteraria'
+  },
+  {
+    from:'Deu', to:'Mat', type:'prophecy', color:'#d4a77a',
+    refA:'Deuteronomio 18:15', refB:'Matteo 17:5',
+    textA:'«Il Signore tuo Dio susciterà per te, in mezzo a te, tra i tuoi fratelli, un profeta simile a me; a lui darete ascolto.»',
+    textB:'«Mentre egli parlava ancora, una nube luminosa li avvolse con la sua ombra. Ed ecco una voce che diceva: "Questi è il Figlio mio prediletto... ascoltatelo".»',
+    explanation:'Mosè profetizza l\'avvento di un "profeta come me" che il popolo dovrà ascoltare. Sul Monte della Trasfigurazione, la voce divina usa le stesse parole: "ascoltatelo". Pietro, nella sua predicazione in Atti 3:22, cita esplicitamente questa profezia riferendola a Gesù. Il parallelo Mosè-Gesù è uno dei temi centrali del Vangelo di Matteo, scritto principalmente per un pubblico ebraico.',
+    author_a:'Mosè (attr.) — XIII sec. a.C.', author_b:'Matteo Apostolo — 60-80 d.C.',
+    period:'~1.300 anni di distanza', link_type:'Legge → Vangelo'
+  },
+  {
+    from:'Job', to:'Rom', type:'wisdom', color:'#d4d47a',
+    refA:'Giobbe 25:4', refB:'Romani 3:23',
+    textA:'«Come può un uomo essere giusto davanti a Dio? Come può essere puro uno nato da donna?»',
+    textB:'«Tutti hanno peccato e sono privi della gloria di Dio.»',
+    explanation:'La domanda esistenziale di Bildad in Giobbe — come può l\'essere umano essere giusto davanti al Creatore? — trova risposta sistematica nella teologia di Paolo in Romani. Giobbe affronta la questione della giustizia individuale nel contesto della sofferenza; Paolo la universalizza nella condizione dell\'intera umanità. Questa tensione tra la giustizia divina e la fragilità umana attraversa tutta la Bibbia e culmina nella dottrina della grazia.',
+    author_a:'Autore ignoto — X-VI sec. a.C.', author_b:'Paolo di Tarso — 57 d.C.',
+    period:'~600-1.000 anni di distanza', link_type:'Saggezza → Dottrina'
+  },
+  {
+    from:'Isa', to:'Luk', type:'prophecy', color:'#7ad4a7',
+    refA:'Isaia 61:1', refB:'Luca 4:18',
+    textA:'«Lo spirito del Signore Dio è su di me, perché il Signore mi ha unto; mi ha inviato a portare la buona notizia agli umili.»',
+    textB:'«Lo Spirito del Signore è sopra di me; per questo mi ha consacrato con l\'unzione, e mi ha mandato a portare ai poveri il lieto annuncio.»',
+    explanation:'Gesù, nella sinagoga di Nazaret, apre il rotolo di Isaia, legge esattamente questo brano e dichiara: "Oggi si è adempiuta questa Scrittura". È uno dei rari momenti in cui il Vangelo ci mostra Gesù che esplicitamente rivendica di essere il compimento di una profezia specifica. Luca usa la Settanta (traduzione greca) quasi verbatim, mostrando l\'intenzione deliberata del collegamento.',
+    author_a:'Isaia — VIII sec. a.C.', author_b:'Luca Evangelista — 60-80 d.C.',
+    period:'~750 anni di distanza', link_type:'Profezia → Auto-compimento'
+  },
+  {
+    from:'Mic', to:'Mat', type:'prophecy', color:'#7ad4a7',
+    refA:'Michea 5:1', refB:'Matteo 2:6',
+    textA:'«E tu, Betlemme di Efrata, così piccola per essere tra i capoluoghi di Giuda, da te mi uscirà colui che deve essere il dominatore in Israele.»',
+    textB:'«E tu, Betlemme, terra di Giuda, non sei davvero il più piccolo capoluogo di Giuda: da te uscirà infatti un capo che pascerà il mio popolo, Israele.»',
+    explanation:'Michea, nel VIII sec. a.C., indica Betlemme come luogo di nascita del futuro re messianico. Matteo cita questa profezia nella narrazione dei Magi: i sommi sacerdoti la usano per rispondere a Erode. Michea era contemporaneo di Isaia e la sua profezia è considerata una delle più specifiche dell\'Antico Testamento per la sua localizzazione geografica precisa.',
+    author_a:'Michea — VIII sec. a.C.', author_b:'Matteo Apostolo — 60-80 d.C.',
+    period:'~750 anni di distanza', link_type:'Profezia → Nascita messianica'
+  },
+  {
+    from:'Psa', to:'Rev', type:'wisdom', color:'#d4d47a',
+    refA:'Salmo 2:9', refB:'Apocalisse 19:15',
+    textA:'«Tu li frantumerai con uno scettro di ferro, li spezzerai come vaso di argilla.»',
+    textB:'«Dalla sua bocca usciva una spada affilata per colpire le nazioni; le governerà con uno scettro di ferro.»',
+    explanation:'Il Salmo 2, salmo regale per eccellenza, descrive il re messianico che governa le nazioni. L\'Apocalisse riprende questa immagine dello "scettro di ferro" e la applica al Cristo glorioso nel giorno del giudizio finale. L\'Apocalisse è il libro del NT che cita l\'AT più densamente — su 404 versetti, oltre 500 allusioni a testi dell\'Antico Testamento, di cui i Salmi sono i più citati.',
+    author_a:'Davide (attr.) — X sec. a.C.', author_b:'Giovanni Apostolo — 95-96 d.C.',
+    period:'~1.050 anni di distanza', link_type:'Regalità messianica'
+  },
+  {
+    from:'Gen', to:'Mat', type:'prophecy', color:'#d4a77a',
+    refA:'Genesi 12:3', refB:'Matteo 1:1',
+    textA:'«In te saranno benedette tutte le famiglie della terra.»',
+    textB:'«Genealogia di Gesù Cristo, figlio di Davide, figlio di Abramo.»',
+    explanation:'Matteo apre il suo Vangelo con una genealogia che risale esplicitamente ad Abramo, il destinatario della promessa universale in Genesi 12. La struttura della genealogia (Abramo → Davide → Gesù) è teologicamente intenzionale: Matteo mostra che Gesù è la benedizione per "tutte le famiglie della terra" promessa in Genesi. La genealogia include anche donne non ebree (Rut, Tamar, Rahab) — anticipando questa universalità.',
+    author_a:'Mosè (attr.) — XIII sec. a.C.', author_b:'Matteo Apostolo — 60-80 d.C.',
+    period:'~1.300 anni di distanza', link_type:'Promessa ad Abramo → Compimento'
+  },
+  {
+    from:'Eze', to:'Rev', type:'prophecy', color:'#a77ad4',
+    refA:'Ezechiele 1:4-10', refB:'Apocalisse 4:6-8',
+    textA:'«In mezzo ad esso c\'era qualcosa simile a quattro esseri viventi... avevano faccia d\'uomo, faccia di leone, faccia di bue e faccia di aquila.»',
+    textB:'«Quattro esseri viventi... il primo essere era simile a un leone, il secondo a un vitello, il terzo aveva l\'aspetto di un uomo, il quarto era simile a un\'aquila che vola.»',
+    explanation:'La visione della Merkavah (carro divino) di Ezechiele e il trono celeste dell\'Apocalisse condividono gli stessi quattro esseri viventi con le quattro facce. Questa iconografia ha plasmato l\'arte cristiana medievale (i simboli dei quattro evangelisti: leone=Marco, bue=Luca, uomo=Matteo, aquila=Giovanni). Giovanni era certamente familiare con Ezechiele e costruisce la sua visione celeste sull\'architettura profetica del predecessore.',
+    author_a:'Ezechiele — VI sec. a.C.', author_b:'Giovanni Apostolo — 95-96 d.C.',
+    period:'~650 anni di distanza', link_type:'Visione apocalittica'
+  },
+  {
+    from:'Exo', to:'Joh', type:'prophecy', color:'#a77ad4',
+    refA:'Esodo 12:46', refB:'Giovanni 19:36',
+    textA:'«Non ne spezzerete alcun osso.»',
+    textB:'«Queste cose avvennero perché si adempisse la Scrittura: Non gli sarà spezzato alcun osso.»',
+    explanation:'La Legge sull\'agnello pasquale prescriveva che nessun osso fosse spezzato. Giovanni, testimone oculare della crocifissione, nota esplicitamente che i soldati non spezzarono le gambe di Gesù (come fecero con i due ladroni), vedendo in questo il compimento della norma pasquale. Per Giovanni, Gesù è il vero "Agnello di Dio" — titolo che il Battista usa in Giovanni 1:29. Il collegamento tra Pasqua ebraica e Pasqua cristiana è uno dei pilastri della teologia giovannea.',
+    author_a:'Mosè (attr.) — XIII sec. a.C.', author_b:'Giovanni Apostolo — 90-100 d.C.',
+    period:'~1.300 anni di distanza', link_type:'Rito pasquale → Passione'
+  },
+];
+
+// ─── RENDER ──────────────────────────────────────────────────────────────────
+
+const W = 900, H = 340, BASELINE = 290, MARGIN_L = 20, USABLE = 860;
+
+function bookX(book) {
+  return MARGIN_L + book.pos * USABLE;
+}
+
+function genreColor(type, from, to) {
+  if (type === 'prophecy') {
+    const fromBook = BOOKS.find(b => b.id === from);
+    const toBook = BOOKS.find(b => b.id === to);
+    if (fromBook && toBook) {
+      if (fromBook.testament === 'OT' && toBook.testament === 'NT') return '#7ad4a7';
+      if (fromBook.genre === 'law') return '#d4a77a';
+    }
+    return '#a77ad4';
+  }
+  if (type === 'wisdom') return '#d4d47a';
+  if (type === 'gospel') return '#d47a7a';
+  if (type === 'epistle') return '#a77ad4';
+  return '#7ab3d4';
+}
+
+function drawArc(conn, idx) {
+  const fromBook = BOOKS.find(b => b.id === conn.from);
+  const toBook = BOOKS.find(b => b.id === conn.to);
+  if (!fromBook || !toBook) return '';
+
+  const x1 = bookX(fromBook), x2 = bookX(toBook);
+  const midX = (x1 + x2) / 2;
+  const span = Math.abs(x2 - x1);
+  const height = Math.min(span * 0.55, 250);
+  const cy = BASELINE - height;
+
+  const color = conn.color || genreColor(conn.type, conn.from, conn.to);
+
+  return `<path 
+    class="arc-path" 
+    d="M${x1},${BASELINE} Q${midX},${cy} ${x2},${BASELINE}" 
+    stroke="${color}" 
+    data-idx="${idx}"
+    data-type="${conn.type}"
+    onclick="showDetail(${idx})"
+    filter="url(#glow)"
+  />`;
+}
+
+function drawLabels() {
+  return BOOKS.map(book => {
+    const x = bookX(book);
+    const color = book.testament === 'NT' ? '#c49de0' : '#a89060';
+    return `
+      <line x1="${x}" y1="${BASELINE}" x2="${x}" y2="${BASELINE + 6}" class="book-tick"/>
+      <text x="${x}" y="${BASELINE + 16}" class="book-label" fill="${color}">${book.name}</text>
+    `;
+  }).join('');
+}
+
+function render() {
+  const arcsLayer = document.getElementById('arcs-layer');
+  const labelsLayer = document.getElementById('labels-layer');
+  arcsLayer.innerHTML = CONNECTIONS.map((c, i) => drawArc(c, i)).join('');
+  labelsLayer.innerHTML = drawLabels();
+}
+
+// ─── INTERACTION ─────────────────────────────────────────────────────────────
+
+let activeIdx = null;
+
+function showDetail(idx) {
+  const conn = CONNECTIONS[idx];
+  activeIdx = idx;
+
+  document.getElementById('ref-a').textContent = conn.refA;
+  document.getElementById('text-a').textContent = conn.textA;
+  document.getElementById('ref-b').textContent = conn.refB;
+  document.getElementById('text-b').textContent = conn.textB;
+  document.getElementById('explanation').textContent = conn.explanation;
+
+  document.getElementById('meta-tags').innerHTML = `
+    <span class="meta-tag tag-author">✍ ${conn.author_a}</span>
+    <span class="meta-tag tag-author">✍ ${conn.author_b}</span>
+    <span class="meta-tag tag-period">⏱ ${conn.period}</span>
+    <span class="meta-tag tag-type">🔗 ${conn.link_type}</span>
+  `;
+
+  const panel = document.getElementById('detail-panel');
+  panel.classList.add('visible');
+  panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+
+  // Highlight arcs
+  document.querySelectorAll('.arc-path').forEach(el => {
+    const i = parseInt(el.dataset.idx);
+    el.classList.toggle('highlighted', i === idx);
+    el.classList.toggle('dimmed', i !== idx);
+  });
+}
+
+function closePanel() {
+  activeIdx = null;
+  document.getElementById('detail-panel').classList.remove('visible');
+  document.querySelectorAll('.arc-path').forEach(el => {
+    el.classList.remove('highlighted', 'dimmed');
+  });
+}
+
+function filterArcs(type) {
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  event.target.classList.add('active');
+  closePanel();
+  document.querySelectorAll('.arc-path').forEach(el => {
+    const arcType = el.dataset.type;
+    if (type === 'all') {
+      el.classList.remove('dimmed');
+    } else {
+      el.classList.toggle('dimmed', arcType !== type);
+    }
+  });
+}
+
+render();
+</script>
+</body>
+</html>
