@@ -16,6 +16,10 @@ export interface Connection {
   refB: string;
   textA: string;
   textB: string;
+  /** Score di confidenza 0–1 (dal dataset OpenBible). Presente per connessioni da DB. */
+  score?: number;
+  /** Se false/undefined: connessione senza spiegazione AI (solo versetti) */
+  hasExplanation?: boolean;
   explanation: string;
   author_a: string;
   author_b: string;
