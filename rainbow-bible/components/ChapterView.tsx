@@ -7,11 +7,9 @@ import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator,
 } from 'react-native';
 import { BOOKS } from '../data/books';
-import { CONNECTIONS } from '../data/connections';   // fallback
 import { SECTIONS } from '../data/sections';
 import { Connection } from '../data/types';
 import { COLORS } from '../theme/colors';
-import { useDB } from '../contexts/DBContext';
 import { getConnectionsForChapter, getChapterCounts } from '../utils/database';
 import DetailPanel from './DetailPanel';
 
@@ -32,7 +30,6 @@ function chapterForConn(conn: Connection, bookId: string): number {
 }
 
 const ChapterView: React.FC<Props> = ({ bookId, sectionId, onBack }) => {
-  const { db } = useDB();
   const book    = BOOKS.find(b => b.id === bookId);
   const section = SECTIONS.find(s => s.id === sectionId);
 
@@ -50,28 +47,15 @@ const ChapterView: React.FC<Props> = ({ bookId, sectionId, onBack }) => {
     setSelectedChapter(null);
     setSelectedConnId(null);
 
-    if (db) {
-      Promise.all([
-        getChapterCounts(db, bookId),
-        getConnectionsForChapter(db, bookId, null),
-      ]).then(([counts, conns]) => {
-        setChapterCounts(counts);
-        setConnections(conns);
-        setLoading(false);
-      }).catch(() => setLoading(false));
-    } else {
-      // Fallback statico
-      const bookConns = CONNECTIONS.filter(c => c.from === bookId || c.to === bookId);
-      const counts: Record<number, number> = {};
-      for (const c of bookConns) {
-        const ch = chapterForConn(c, bookId);
-        if (ch > 0) counts[ch] = (counts[ch] ?? 0) + 1;
-      }
+    Promise.all([
+      getChapterCounts(bookId),
+      getConnectionsForChapter(bookId, null),
+    ]).then(([counts, conns]) => {
       setChapterCounts(counts);
-      setConnections(bookConns);
+      setConnections(conns);
       setLoading(false);
-    }
-  }, [db, bookId]);
+    }).catch(() => setLoading(false));
+  }, [bookId]);
 
   // Quando l'utente seleziona un capitolo, carica solo quelle connessioni
   const handleChapterPress = useCallback(async (ch: number) => {
@@ -79,20 +63,11 @@ const ChapterView: React.FC<Props> = ({ bookId, sectionId, onBack }) => {
     setSelectedChapter(next);
     setSelectedConnId(null);
 
-    if (db) {
-      setLoading(true);
-      getConnectionsForChapter(db, bookId, next)
-        .then(conns => { setConnections(conns); setLoading(false); })
-        .catch(() => setLoading(false));
-    } else {
-      const bookConns = CONNECTIONS.filter(c => c.from === bookId || c.to === bookId);
-      setConnections(
-        next === null
-          ? bookConns
-          : bookConns.filter(c => chapterForConn(c, bookId) === next)
-      );
-    }
-  }, [db, bookId, selectedChapter]);
+    setLoading(true);
+    getConnectionsForChapter(bookId, next)
+      .then(conns => { setConnections(conns); setLoading(false); })
+      .catch(() => setLoading(false));
+  }, [bookId, selectedChapter]);
 
   const chapters = useMemo(
     () => Object.keys(chapterCounts).map(Number).sort((a, b) => a - b),

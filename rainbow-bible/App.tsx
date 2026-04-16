@@ -31,7 +31,7 @@ type AppView = 'macro' | 'section' | 'book' | 'chapter';
 
 // ── Navigator (inside DBProvider) ─────────────────────────────────────────
 function Navigator() {
-  const { loading, error, db } = useDB();
+  const { loading, error } = useDB();
 
   const [view,      setView]      = useState<AppView>('macro');
   const [sectionId, setSectionId] = useState<string | null>(null);

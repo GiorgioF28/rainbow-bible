@@ -7,11 +7,9 @@ import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator,
 } from 'react-native';
 import { BOOKS } from '../data/books';
-import { CONNECTIONS } from '../data/connections';   // fallback
 import { SECTIONS } from '../data/sections';
 import { Connection } from '../data/types';
 import { COLORS } from '../theme/colors';
-import { useDB } from '../contexts/DBContext';
 import { getConnectionsForBook } from '../utils/database';
 import ArcVisualization, { ARC_VIZ_W, LABEL_AREA } from './ArcVisualization';
 import ArcTouchLayer from './ArcTouchLayer';
@@ -25,7 +23,6 @@ interface Props {
 }
 
 const BookArcView: React.FC<Props> = ({ bookId, sectionId, onBack, onChapterPress }) => {
-  const { db } = useDB();
   const book    = BOOKS.find(b => b.id === bookId);
   const section = SECTIONS.find(s => s.id === sectionId);
 
@@ -43,18 +40,10 @@ const BookArcView: React.FC<Props> = ({ bookId, sectionId, onBack, onChapterPres
     setSelectedId(null);
     setSectionFilter(null);
 
-    if (db) {
-      getConnectionsForBook(db, bookId)
-        .then(rows => { setAllConnections(rows); setLoading(false); })
-        .catch(() => setLoading(false));
-    } else {
-      // Fallback statico
-      setAllConnections(
-        CONNECTIONS.filter(c => c.from === bookId || c.to === bookId)
-      );
-      setLoading(false);
-    }
-  }, [db, bookId]);
+    getConnectionsForBook(bookId)
+      .then(rows => { setAllConnections(rows); setLoading(false); })
+      .catch(() => setLoading(false));
+  }, [bookId]);
 
   // Filtro per sezione di destinazione
   const filtered = useMemo<Connection[]>(() => {

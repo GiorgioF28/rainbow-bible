@@ -14,7 +14,6 @@ import Svg, {
 import { SECTIONS, BibleSection } from '../data/sections';
 import { CONNECTIONS } from '../data/connections';         // fallback statico
 import { COLORS } from '../theme/colors';
-import { useDB } from '../contexts/DBContext';
 import { getBookPairCounts, BookPairCount } from '../utils/database';
 
 const DESIGN_W     = 900;
@@ -86,19 +85,16 @@ interface MacroViewProps {
 
 const MacroView: React.FC<MacroViewProps> = ({ onSectionPress }) => {
   const { width: screenW } = useWindowDimensions();
-  const { db } = useDB();
   const [svgH, setSvgH] = useState(0);
 
   const [sectionArcs,     setSectionArcs]     = useState<SectionArc[]>(() => staticSectionArcs());
   const [countPerSection, setCountPerSection] = useState<Record<string, number>>(() => staticCountPerSection());
 
-  // Carica dati reali dal DB quando disponibile
+  // Carica dati reali da Supabase
   useEffect(() => {
-    if (!db) return;
-    getBookPairCounts(db).then(pairs => {
+    getBookPairCounts().then(pairs => {
       setSectionArcs(pairsToSectionArcs(pairs));
 
-      // Calcola count per sezione dai pairs reali
       const counts: Record<string, number> = {};
       for (const p of pairs) {
         const fId = BOOK_TO_SECTION[p.fromBook]?.id;
@@ -108,7 +104,7 @@ const MacroView: React.FC<MacroViewProps> = ({ onSectionPress }) => {
       }
       setCountPerSection(counts);
     }).catch(console.warn);
-  }, [db]);
+  }, []);
 
   const svgW     = screenW;
   const baseline = svgH > 0 ? svgH * BASELINE_FRAC : 0;
@@ -124,8 +120,8 @@ const MacroView: React.FC<MacroViewProps> = ({ onSectionPress }) => {
       <View style={styles.header}>
         <Text style={styles.title}>RAINBOW BIBLE</Text>
         <Text style={styles.subtitle}>Seleziona una sezione per esplorare</Text>
-        <Text style={[styles.dbBadge, { color: db ? '#7ad4a7' : '#e07a7a' }]}>
-          {db ? '● DB 344k' : '● statico 32'}
+        <Text style={[styles.dbBadge, { color: '#7ad4a7' }]}>
+          ● DB 344k
         </Text>
       </View>
 

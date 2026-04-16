@@ -5,10 +5,8 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, StyleSheet, ActivityIndicator } from 'react-native';
 import { BOOKS } from '../data/books';
-import { CONNECTIONS } from '../data/connections';   // fallback
 import { SECTIONS } from '../data/sections';
 import { COLORS } from '../theme/colors';
-import { useDB } from '../contexts/DBContext';
 import { getConnectionCountsForBooks } from '../utils/database';
 
 interface Props {
@@ -18,7 +16,6 @@ interface Props {
 }
 
 const SectionBooksPage: React.FC<Props> = ({ sectionId, onBookPress, onBack }) => {
-  const { db } = useDB();
   const section = SECTIONS.find(s => s.id === sectionId);
 
   const [counts,  setCounts]  = useState<Record<string, number>>({});
@@ -31,23 +28,10 @@ const SectionBooksPage: React.FC<Props> = ({ sectionId, onBookPress, onBack }) =
 
   useEffect(() => {
     if (!section) return;
-
-    if (db) {
-      // DB disponibile → query reale
-      getConnectionCountsForBooks(db, section.bookIds)
-        .then(c => { setCounts(c); setLoading(false); })
-        .catch(() => setLoading(false));
-    } else {
-      // Fallback statico
-      const c: Record<string, number> = {};
-      for (const conn of CONNECTIONS) {
-        if (section.bookIds.includes(conn.from)) c[conn.from] = (c[conn.from] ?? 0) + 1;
-        if (section.bookIds.includes(conn.to))   c[conn.to]   = (c[conn.to]   ?? 0) + 1;
-      }
-      setCounts(c);
-      setLoading(false);
-    }
-  }, [db, section]);
+    getConnectionCountsForBooks(section.bookIds)
+      .then(c => { setCounts(c); setLoading(false); })
+      .catch(() => setLoading(false));
+  }, [section]);
 
   if (!section) return null;
 
