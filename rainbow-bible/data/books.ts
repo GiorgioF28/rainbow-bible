@@ -55,7 +55,7 @@ export const BOOKS: Book[] = [
   { id: '2Co', name: '2 Corinzi',     position: 0.831, testament: 'NT', genre: 'epistle' },
   { id: 'Gal', name: 'Galati',        position: 0.840, testament: 'NT', genre: 'epistle' },
   { id: 'Eph', name: 'Efesini',       position: 0.849, testament: 'NT', genre: 'epistle' },
-  { id: 'Php', name: 'Filippesi',     position: 0.858, testament: 'NT', genre: 'epistle' },
+  { id: 'Phi', name: 'Filippesi',     position: 0.858, testament: 'NT', genre: 'epistle' },
   { id: 'Col', name: 'Colossesi',     position: 0.866, testament: 'NT', genre: 'epistle' },
   { id: '1Th', name: '1 Tess.',       position: 0.874, testament: 'NT', genre: 'epistle' },
   { id: '2Th', name: '2 Tess.',       position: 0.882, testament: 'NT', genre: 'epistle' },

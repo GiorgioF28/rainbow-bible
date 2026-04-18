@@ -1,19 +1,19 @@
 /**
  * database.ts
  * ─────────────────────────────────────────────────────────────────────────
- * Fornisce tutte le funzioni di query usando Supabase come backend.
- * Nessun file SQLite locale — i dati vengono letti direttamente dal DB remoto.
+ * Tutte le query via Supabase. Nessun file SQLite locale.
  */
 
 import { supabase } from './supabase';
 import { BOOKS } from '../data/books';
 import { SECTIONS } from '../data/sections';
 import { Connection, FilterType } from '../data/types';
+import { bookName as i18nBookName } from '../i18n';
 
 // ── Costanti ──────────────────────────────────────────────────────────────
-const MAX_BOOK_CONNECTIONS = 400;
+export const PAGE_SIZE = 400;
 
-// ── Lookup tables derivate dai dati statici ───────────────────────────────
+// ── Lookup tables ─────────────────────────────────────────────────────────
 const BOOK_NAME: Record<string, string> = {};
 const BOOK_GENRE: Record<string, string> = {};
 const BOOK_TESTAMENT: Record<string, string> = {};
@@ -25,12 +25,10 @@ for (const b of BOOKS) {
 
 const SECTION_COLOR: Record<string, string> = {};
 for (const s of SECTIONS) {
-  for (const bid of s.bookIds) {
-    SECTION_COLOR[bid] = s.color;
-  }
+  for (const bid of s.bookIds) SECTION_COLOR[bid] = s.color;
 }
 
-// ── Helper: inferisce type e color dai book ids ───────────────────────────
+// ── Helper: inferisce type e color ────────────────────────────────────────
 function inferType(fromBook: string, toBook: string): FilterType {
   const fromGenre = BOOK_GENRE[fromBook] ?? '';
   const toGenre   = BOOK_GENRE[toBook]   ?? '';
@@ -47,7 +45,7 @@ function inferColor(fromBook: string, toBook: string): string {
 }
 
 function formatRef(bookId: string, ch: number, vs: number): string {
-  return `${BOOK_NAME[bookId] ?? bookId} ${ch}:${vs}`;
+  return `${i18nBookName(bookId)} ${ch}:${vs}`;
 }
 
 function rowToConnection(row: any): Connection {
@@ -73,7 +71,7 @@ function rowToConnection(row: any): Connection {
 }
 
 // ══════════════════════════════════════════════════════════════════════════
-//  QUERY — MacroView
+//  MacroView
 // ══════════════════════════════════════════════════════════════════════════
 
 export interface BookPairCount {
@@ -93,7 +91,7 @@ export async function getBookPairCounts(): Promise<BookPairCount[]> {
 }
 
 // ══════════════════════════════════════════════════════════════════════════
-//  QUERY — SectionBooksPage
+//  SectionBooksPage
 // ══════════════════════════════════════════════════════════════════════════
 
 export async function getConnectionCountsForBooks(
@@ -110,44 +108,85 @@ export async function getConnectionCountsForBooks(
 }
 
 // ══════════════════════════════════════════════════════════════════════════
-//  QUERY — BookArcView
+//  BookArcView
 // ══════════════════════════════════════════════════════════════════════════
 
+/** Carica una pagina di connessioni per un libro, ordinate per score desc. */
 export async function getConnectionsForBook(
-  bookId:          string,
-  targetSectionId: string | null = null,
-  limit            = MAX_BOOK_CONNECTIONS
+  bookId:         string,
+  sectionBookIds: string[] | null = null,
+  limit           = PAGE_SIZE,
+  offset          = 0,
 ): Promise<Connection[]> {
-  let sectionBookIds: string[] | null = null;
-  if (targetSectionId) {
-    const sec = SECTIONS.find(s => s.id === targetSectionId);
-    if (sec && sec.bookIds.length > 0) sectionBookIds = sec.bookIds;
-  }
   const { data, error } = await supabase.rpc('get_connections_for_book', {
     p_book_id:          bookId,
     p_section_book_ids: sectionBookIds,
     p_limit:            limit,
+    p_offset:           offset,
   });
   if (error) throw new Error(error.message);
   return (data ?? []).map(rowToConnection);
 }
 
+/** Totale connessioni per un libro (con filtro sezione opzionale). */
+export async function getConnectionsForBookCount(
+  bookId:         string,
+  sectionBookIds: string[] | null = null,
+): Promise<number> {
+  const { data, error } = await supabase.rpc('get_connections_for_book_count', {
+    p_book_id:          bookId,
+    p_section_book_ids: sectionBookIds,
+  });
+  if (error) throw new Error(error.message);
+  return Number(data ?? 0);
+}
+
+/** Tutti i libri collegati (per costruire i tab sezione senza limite 400). */
+export async function getConnectedBooksForBook(bookId: string): Promise<string[]> {
+  const { data, error } = await supabase.rpc('get_connected_books_for_book', {
+    p_book_id: bookId,
+  });
+  if (error) throw new Error(error.message);
+  return (data ?? []).map((r: any) => r.book_id as string);
+}
+
 // ══════════════════════════════════════════════════════════════════════════
-//  QUERY — ChapterView
+//  ChapterView
 // ══════════════════════════════════════════════════════════════════════════
 
+/**
+ * Carica connessioni per capitolo.
+ * @param orderBy 'score' (default) | 'verse' — ordine per percentuale o per versetto
+ */
 export async function getConnectionsForChapter(
-  bookId:  string,
-  chapter: number | null = null,
-  limit    = MAX_BOOK_CONNECTIONS
+  bookId:   string,
+  chapter:  number | null = null,
+  limit     = PAGE_SIZE,
+  offset    = 0,
+  orderBy   = 'score',
 ): Promise<Connection[]> {
   const { data, error } = await supabase.rpc('get_connections_for_chapter', {
-    p_book_id: bookId,
-    p_chapter: chapter,
-    p_limit:   limit,
+    p_book_id:  bookId,
+    p_chapter:  chapter,
+    p_limit:    limit,
+    p_offset:   offset,
+    p_order_by: orderBy,
   });
   if (error) throw new Error(error.message);
   return (data ?? []).map(rowToConnection);
+}
+
+/** Totale connessioni per capitolo. */
+export async function getConnectionsForChapterCount(
+  bookId:  string,
+  chapter: number | null = null,
+): Promise<number> {
+  const { data, error } = await supabase.rpc('get_connections_for_chapter_count', {
+    p_book_id: bookId,
+    p_chapter: chapter,
+  });
+  if (error) throw new Error(error.message);
+  return Number(data ?? 0);
 }
 
 export async function getChapterCounts(
@@ -162,8 +201,25 @@ export async function getChapterCounts(
   return result;
 }
 
+/** Conteggio connessioni per versetto (per i chip versetto in ChapterView). */
+export async function getVerseCounts(
+  bookId:  string,
+  chapter: number | null = null,
+): Promise<Array<{ ch: number; vs: number; cnt: number }>> {
+  const { data, error } = await supabase.rpc('get_verse_counts', {
+    p_book_id: bookId,
+    p_chapter: chapter,
+  });
+  if (error) throw new Error(error.message);
+  return (data ?? []).map((r: any) => ({
+    ch:  Number(r.ch),
+    vs:  Number(r.vs),
+    cnt: Number(r.cnt),
+  }));
+}
+
 // ══════════════════════════════════════════════════════════════════════════
-//  QUERY — DetailPanel
+//  DetailPanel
 // ══════════════════════════════════════════════════════════════════════════
 
 export async function getConnectionById(id: number): Promise<Connection | null> {

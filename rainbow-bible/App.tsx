@@ -1,13 +1,14 @@
 /**
- * App.tsx — 4-level navigation con DB SQLite
+ * App.tsx — 4-level navigation
  *
- * macro   → MacroView        (8 sezioni aggregated arcs)
+ * macro   → MacroView        (8 sezioni, archi aggregati)
  * section → SectionBooksPage (libri della sezione)
- * book    → BookArcView      (archi del libro con filtri sezione)
- * chapter → ChapterView      (capitoli + lista collegamenti)
+ * book    → BookArcView      (archi del libro con paginazione e filtri sezione)
+ * chapter → ChapterView      (capitoli + lista collegamenti per capitolo/versetto)
  */
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
+import { View, StyleSheet } from 'react-native';
+import { useDB } from './contexts/DBContext';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import {
   useFonts,
@@ -21,7 +22,9 @@ import {
 } from '@expo-google-fonts/eb-garamond';
 
 import { COLORS } from './theme/colors';
-import { DBProvider, useDB } from './contexts/DBContext';
+import { DBProvider } from './contexts/DBContext';
+import { LangProvider } from './contexts/LangContext';
+import LoadingScreen from './components/LoadingScreen';
 import MacroView from './components/MacroView';
 import SectionBooksPage from './components/SectionBooksPage';
 import BookArcView from './components/BookArcView';
@@ -31,8 +34,7 @@ type AppView = 'macro' | 'section' | 'book' | 'chapter';
 
 // ── Navigator (inside DBProvider) ─────────────────────────────────────────
 function Navigator() {
-  const { loading, error } = useDB();
-
+  const { loading: dbLoading } = useDB();
   const [view,      setView]      = useState<AppView>('macro');
   const [sectionId, setSectionId] = useState<string | null>(null);
   const [bookId,    setBookId]    = useState<string | null>(null);
@@ -45,53 +47,15 @@ function Navigator() {
     EBGaramond_400Regular_Italic,
   });
 
-  // ── Splash: fonts + DB ──────────────────────────────────────────────────
-  if (!fontsLoaded || loading) {
-    return (
-      <View style={styles.splash}>
-        <Text style={styles.splashGlyph}>✦</Text>
-        <Text style={styles.splashLabel}>
-          {loading ? 'Caricamento database…' : ''}
-        </Text>
-        {loading && (
-          <ActivityIndicator
-            color={COLORS.gold}
-            size="small"
-            style={{ marginTop: 16 }}
-          />
-        )}
-      </View>
-    );
-  }
-
-  // ── DB error banner (non blocca la navigazione — usa fallback statico) ───
-  if (error) {
-    return (
-      <View style={styles.splash}>
-        <Text style={styles.splashGlyph}>⚠</Text>
-        <Text style={[styles.splashLabel, { color: '#e07a7a', textAlign: 'center', paddingHorizontal: 24 }]}>
-          DB non caricato — modalità statica (32 connessioni){'\n\n'}
-          {error}
-        </Text>
-      </View>
-    );
+  // Mostra la loading screen finché font e DB non sono pronti
+  if (!fontsLoaded || dbLoading) {
+    return <LoadingScreen />;
   }
 
   // ── Navigation handlers ──────────────────────────────────────────────────
-  const goSection = (sid: string) => {
-    setSectionId(sid);
-    setView('section');
-  };
-
-  const goBook = (bid: string) => {
-    setBookId(bid);
-    setView('book');
-  };
-
-  const goChapter = (bid: string) => {
-    setBookId(bid);
-    setView('chapter');
-  };
+  const goSection = (sid: string) => { setSectionId(sid); setView('section'); };
+  const goBook    = (bid: string) => { setBookId(bid);    setView('book'); };
+  const goChapter = (bid: string) => { setBookId(bid);    setView('chapter'); };
 
   const goBack = () => {
     switch (view) {
@@ -138,11 +102,13 @@ function Navigator() {
 export default function App() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <DBProvider>
-        <View style={styles.root}>
-          <Navigator />
-        </View>
-      </DBProvider>
+      <LangProvider>
+        <DBProvider>
+          <View style={styles.root}>
+            <Navigator />
+          </View>
+        </DBProvider>
+      </LangProvider>
     </GestureHandlerRootView>
   );
 }
@@ -151,22 +117,5 @@ const styles = StyleSheet.create({
   root: {
     flex: 1,
     backgroundColor: COLORS.parchment,
-  },
-  splash: {
-    flex: 1,
-    backgroundColor: COLORS.parchment,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  splashGlyph: {
-    color: COLORS.gold,
-    fontSize: 42,
-  },
-  splashLabel: {
-    fontFamily: 'EBGaramond_400Regular_Italic',
-    fontSize: 14,
-    color: COLORS.inkDim,
-    marginTop: 12,
-    letterSpacing: 0.5,
   },
 });

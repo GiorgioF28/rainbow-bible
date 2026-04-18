@@ -1,20 +1,20 @@
 /**
  * MacroView — Level-1 home screen.
- * Se il DB è disponibile, carica i conteggi reali (344k connessioni).
- * Altrimenti ricade sui 32 collegamenti statici.
+ * Carica i conteggi reali da Supabase (344k connessioni).
  */
 import React, { useMemo, useState, useEffect } from 'react';
 import {
-  View, Text, TouchableOpacity, ScrollView, StyleSheet, useWindowDimensions,
+  View, Text, TouchableOpacity, ScrollView, StyleSheet, useWindowDimensions, Modal,
 } from 'react-native';
 import Svg, {
   Defs, RadialGradient, LinearGradient, Stop,
   Rect, Line, Path, G, Text as SvgText, Circle,
 } from 'react-native-svg';
 import { SECTIONS, BibleSection } from '../data/sections';
-import { CONNECTIONS } from '../data/connections';         // fallback statico
 import { COLORS } from '../theme/colors';
 import { getBookPairCounts, BookPairCount } from '../utils/database';
+import { useLang } from '../contexts/LangContext';
+import { t, sectionLabel } from '../i18n';
 
 const DESIGN_W     = 900;
 const BASELINE_FRAC = 0.80;
@@ -43,30 +43,6 @@ function pairsToSectionArcs(pairs: BookPairCount[]): SectionArc[] {
   return Object.values(map);
 }
 
-function staticSectionArcs(): SectionArc[] {
-  const map: Record<string, SectionArc> = {};
-  for (const conn of CONNECTIONS) {
-    const fSec = BOOK_TO_SECTION[conn.from];
-    const tSec = BOOK_TO_SECTION[conn.to];
-    if (!fSec || !tSec || fSec.id === tSec.id) continue;
-    const key = `${fSec.id}__${tSec.id}`;
-    if (map[key]) map[key].count++;
-    else map[key] = { fromSection: fSec, toSection: tSec, count: 1, color: fSec.color };
-  }
-  return Object.values(map);
-}
-
-function staticCountPerSection(): Record<string, number> {
-  const counts: Record<string, number> = {};
-  for (const conn of CONNECTIONS) {
-    const fId = BOOK_TO_SECTION[conn.from]?.id;
-    const tId = BOOK_TO_SECTION[conn.to]?.id;
-    if (fId) counts[fId] = (counts[fId] ?? 0) + 1;
-    if (tId && tId !== fId) counts[tId] = (counts[tId] ?? 0) + 1;
-  }
-  return counts;
-}
-
 function scaledX(macroX: number, svgW: number): number {
   const margin = svgW * 0.04;
   return margin + (macroX / DESIGN_W) * (svgW - margin * 2);
@@ -86,11 +62,13 @@ interface MacroViewProps {
 const MacroView: React.FC<MacroViewProps> = ({ onSectionPress }) => {
   const { width: screenW } = useWindowDimensions();
   const [svgH, setSvgH] = useState(0);
+  const { lang, setLang, langs } = useLang();
+  const [langModalVisible, setLangModalVisible] = useState(false);
 
-  const [sectionArcs,     setSectionArcs]     = useState<SectionArc[]>(() => staticSectionArcs());
-  const [countPerSection, setCountPerSection] = useState<Record<string, number>>(() => staticCountPerSection());
+  const [sectionArcs,     setSectionArcs]     = useState<SectionArc[]>([]);
+  const [countPerSection, setCountPerSection] = useState<Record<string, number>>({});
 
-  // Carica dati reali da Supabase
+  // Carica dati da Supabase
   useEffect(() => {
     getBookPairCounts().then(pairs => {
       setSectionArcs(pairsToSectionArcs(pairs));
@@ -117,12 +95,36 @@ const MacroView: React.FC<MacroViewProps> = ({ onSectionPress }) => {
 
   return (
     <View style={styles.container}>
+      {/* Language picker modal */}
+      <Modal visible={langModalVisible} transparent animationType="fade"
+        onRequestClose={() => setLangModalVisible(false)}>
+        <TouchableOpacity style={styles.modalOverlay} activeOpacity={1}
+          onPress={() => setLangModalVisible(false)}>
+          <View style={styles.modalBox}>
+            <Text style={styles.modalTitle}>{t('language')}</Text>
+            {langs.map(l => (
+              <TouchableOpacity key={l.code} style={styles.langRow}
+                onPress={() => { setLang(l.code); setLangModalVisible(false); }}>
+                <Text style={[styles.langLabel, lang === l.code && styles.langLabelActive]}>
+                  {l.label}
+                </Text>
+                {lang === l.code && <Text style={styles.langCheck}>✓</Text>}
+              </TouchableOpacity>
+            ))}
+          </View>
+        </TouchableOpacity>
+      </Modal>
+
       <View style={styles.header}>
         <Text style={styles.title}>RAINBOW BIBLE</Text>
-        <Text style={styles.subtitle}>Seleziona una sezione per esplorare</Text>
+        <Text style={styles.subtitle}>{t('macro_subtitle')}</Text>
         <Text style={[styles.dbBadge, { color: '#7ad4a7' }]}>
           ● DB 344k
         </Text>
+        <TouchableOpacity style={styles.langBtn}
+          onPress={() => setLangModalVisible(true)}>
+          <Text style={styles.langBtnText}>{lang.toUpperCase()}</Text>
+        </TouchableOpacity>
       </View>
 
       <View style={styles.svgFlex} onLayout={e => setSvgH(e.nativeEvent.layout.height)}>
@@ -149,12 +151,12 @@ const MacroView: React.FC<MacroViewProps> = ({ onSectionPress }) => {
                 <SvgText x={scaledX(240, svgW)} y={18}
                   fill="rgba(201,168,76,0.25)" fontSize={8}
                   fontFamily="Cinzel_400Regular" textAnchor="middle" letterSpacing={2}>
-                  ANTICO TESTAMENTO
+                  {t('old_testament')}
                 </SvgText>
                 <SvgText x={scaledX(700, svgW)} y={18}
                   fill="rgba(201,168,76,0.25)" fontSize={8}
                   fontFamily="Cinzel_400Regular" textAnchor="middle" letterSpacing={2}>
-                  NUOVO TESTAMENTO
+                  {t('new_testament')}
                 </SvgText>
                 <Line
                   x1={scaledX(503, svgW)} y1={8}
@@ -195,7 +197,7 @@ const MacroView: React.FC<MacroViewProps> = ({ onSectionPress }) => {
                   <SvgText x={cx} y={baseline + 18}
                     fill={section.color} fontSize={9}
                     fontFamily="Cinzel_400Regular" textAnchor="middle" opacity={0.9}>
-                    {section.label}
+                    {sectionLabel(section.id)}
                   </SvgText>
                   {label !== '' && (
                     <SvgText x={cx} y={baseline + 30}
@@ -238,7 +240,7 @@ const MacroView: React.FC<MacroViewProps> = ({ onSectionPress }) => {
             style={[styles.btn, { borderColor: section.color + '70' }]}
             onPress={() => onSectionPress(section.id)} activeOpacity={0.7}>
             <Text style={[styles.btnLabel, { color: section.color }]}>
-              {section.label}
+              {sectionLabel(section.id)}
             </Text>
           </TouchableOpacity>
         ))}
@@ -281,6 +283,42 @@ const styles = StyleSheet.create({
   },
   btnLabel: {
     fontFamily: 'Cinzel_400Regular', fontSize: 11, letterSpacing: 0.6,
+  },
+
+  langBtn: {
+    position: 'absolute', top: 52, right: 16,
+    paddingHorizontal: 9, paddingVertical: 4,
+    borderWidth: 1, borderColor: 'rgba(201,168,76,0.4)',
+    borderRadius: 10, backgroundColor: 'rgba(201,168,76,0.07)',
+  },
+  langBtnText: {
+    fontFamily: 'Cinzel_400Regular', fontSize: 10, color: COLORS.gold, letterSpacing: 1,
+  },
+
+  modalOverlay: {
+    flex: 1, backgroundColor: 'rgba(0,0,0,0.6)',
+    justifyContent: 'center', alignItems: 'center',
+  },
+  modalBox: {
+    backgroundColor: '#1e1508',
+    borderWidth: 1, borderColor: 'rgba(201,168,76,0.3)',
+    borderRadius: 8, paddingVertical: 12, paddingHorizontal: 20, minWidth: 180,
+  },
+  modalTitle: {
+    fontFamily: 'Cinzel_400Regular', fontSize: 10,
+    color: COLORS.inkDim, letterSpacing: 2, marginBottom: 12,
+    textAlign: 'center',
+  },
+  langRow: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: 'rgba(201,168,76,0.1)',
+  },
+  langLabel: {
+    fontFamily: 'EBGaramond_400Regular', fontSize: 16, color: COLORS.inkDim,
+  },
+  langLabelActive: { color: COLORS.gold },
+  langCheck: {
+    fontFamily: 'Cinzel_400Regular', fontSize: 13, color: COLORS.gold,
   },
 });
 

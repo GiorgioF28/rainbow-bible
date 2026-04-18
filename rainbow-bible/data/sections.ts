@@ -34,7 +34,7 @@ export const SECTIONS: BibleSection[] = [
   },
   {
     id: 'epistle', label: 'Lettere', color: '#a77ad4', macroX: 718,
-    bookIds: ['Rom', '1Co', '2Co', 'Gal', 'Eph', 'Php', 'Col', '1Th', '2Th', '1Ti', '2Ti', 'Tit', 'Phm', 'Heb', 'Jas', '1Pe', '2Pe', '1Jn', '2Jn', '3Jn', 'Jud'],
+    bookIds: ['Rom', '1Co', '2Co', 'Gal', 'Eph', 'Phi', 'Col', '1Th', '2Th', '1Ti', '2Ti', 'Tit', 'Phm', 'Heb', 'Jas', '1Pe', '2Pe', '1Jn', '2Jn', '3Jn', 'Jud'],
   },
   {
     id: 'apocalypse', label: 'Apoc.', color: '#c87a7a', macroX: 852,

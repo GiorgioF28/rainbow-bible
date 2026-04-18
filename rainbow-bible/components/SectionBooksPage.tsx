@@ -8,6 +8,8 @@ import { BOOKS } from '../data/books';
 import { SECTIONS } from '../data/sections';
 import { COLORS } from '../theme/colors';
 import { getConnectionCountsForBooks } from '../utils/database';
+import { useLang } from '../contexts/LangContext';
+import { t, sectionLabel } from '../i18n';
 
 interface Props {
   sectionId: string;
@@ -17,6 +19,7 @@ interface Props {
 
 const SectionBooksPage: React.FC<Props> = ({ sectionId, onBookPress, onBack }) => {
   const section = SECTIONS.find(s => s.id === sectionId);
+  useLang(); // subscribe to lang changes for re-render
 
   const [counts,  setCounts]  = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
@@ -43,15 +46,15 @@ const SectionBooksPage: React.FC<Props> = ({ sectionId, onBookPress, onBack }) =
       <View style={styles.header}>
         <TouchableOpacity style={styles.backBtn} onPress={onBack}
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-          <Text style={styles.backBtnText}>‹ Sezioni</Text>
+          <Text style={styles.backBtnText}>‹ {t('back_sections')}</Text>
         </TouchableOpacity>
         <View style={styles.headerCenter}>
           <Text style={[styles.sectionName, { color: section.color }]}>
-            {section.label.toUpperCase()}
+            {sectionLabel(section.id).toUpperCase()}
           </Text>
           {!loading && (
             <Text style={styles.sectionMeta}>
-              {books.length} libri · {totalConnections.toLocaleString()} collegam.
+              {books.length} {t('books')} · {totalConnections.toLocaleString()} {t('connections_abbr')}
             </Text>
           )}
         </View>
@@ -59,7 +62,7 @@ const SectionBooksPage: React.FC<Props> = ({ sectionId, onBookPress, onBack }) =
       </View>
 
       <Text style={styles.instruction}>
-        Seleziona un libro per esplorare i collegamenti
+        {t('select_book')}
       </Text>
 
       {loading ? (

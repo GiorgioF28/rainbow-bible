@@ -12,13 +12,24 @@ import { COLORS } from '../theme/colors';
 import { TYPOGRAPHY } from '../theme/typography';
 import VerseBlock from './VerseBlock';
 import MetaTags from './MetaTags';
+import { useLang } from '../contexts/LangContext';
+import { t } from '../i18n';
 
 interface DetailPanelProps {
-  connection: Connection | null;
-  onClose: () => void;
+  connection:     Connection | null;
+  onClose:        () => void;
+  scrollEnabled?: boolean;
+  onPrev?:        () => void;
+  onNext?:        () => void;
+  siblingIndex?:  number;
+  siblingTotal?:  number;
 }
 
-const DetailPanel: React.FC<DetailPanelProps> = ({ connection, onClose }) => {
+const DetailPanel: React.FC<DetailPanelProps> = ({
+  connection, onClose, scrollEnabled = true,
+  onPrev, onNext, siblingIndex, siblingTotal,
+}) => {
+  useLang(); // re-render on language change
   const translateY = useRef(new Animated.Value(20)).current;
   const opacity    = useRef(new Animated.Value(0)).current;
 
@@ -47,7 +58,7 @@ const DetailPanel: React.FC<DetailPanelProps> = ({ connection, onClose }) => {
         <Text style={styles.closeBtnText}>✕</Text>
       </TouchableOpacity>
 
-      <ScrollView showsVerticalScrollIndicator={false} bounces={false}>
+      <ScrollView showsVerticalScrollIndicator={false} bounces={false} scrollEnabled={scrollEnabled} nestedScrollEnabled={false}>
         {/* Verses */}
         <View style={styles.versesRow}>
           <VerseBlock reference={connection.refA} text={connection.textA} />
@@ -62,7 +73,7 @@ const DetailPanel: React.FC<DetailPanelProps> = ({ connection, onClose }) => {
         {/* Explanation — only when present */}
         {hasExplanation ? (
           <View style={styles.explanationBlock}>
-            <Text style={styles.explanationTitle}>Analisi del collegamento</Text>
+            <Text style={styles.explanationTitle}>{t('analysis_title')}</Text>
             <Text style={styles.explanationText}>{connection.explanation}</Text>
             <MetaTags connection={connection} />
           </View>
@@ -70,7 +81,7 @@ const DetailPanel: React.FC<DetailPanelProps> = ({ connection, onClose }) => {
           <View style={styles.noExplanationBlock}>
             <View style={[styles.noExplDot, { backgroundColor: connection.color }]} />
             <Text style={styles.noExplanationText}>
-              Spiegazione non ancora disponibile per questo collegamento.
+              {t('no_explanation')}
             </Text>
           </View>
         )}
@@ -78,7 +89,7 @@ const DetailPanel: React.FC<DetailPanelProps> = ({ connection, onClose }) => {
         {/* Score badge (only for DB connections) */}
         {connection.score !== undefined && (
           <View style={styles.scoreRow}>
-            <Text style={styles.scoreLabel}>Confidenza</Text>
+            <Text style={styles.scoreLabel}>{t('confidence')}</Text>
             <View style={styles.scoreBarBg}>
               <View
                 style={[
@@ -90,6 +101,31 @@ const DetailPanel: React.FC<DetailPanelProps> = ({ connection, onClose }) => {
             <Text style={[styles.scoreValue, { color: connection.color }]}>
               {Math.round(connection.score * 100)}%
             </Text>
+          </View>
+        )}
+
+        {/* Pair navigation */}
+        {siblingTotal !== undefined && siblingTotal > 1 && (
+          <View style={styles.navRow}>
+            <TouchableOpacity
+              style={[styles.navBtn, !onPrev && styles.navBtnDisabled]}
+              onPress={onPrev}
+              disabled={!onPrev}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+              <Text style={[styles.navBtnText, !onPrev && styles.navBtnTextDisabled]}>‹</Text>
+            </TouchableOpacity>
+
+            <Text style={styles.navCounter}>
+              {(siblingIndex ?? 0) + 1} {t('of')} {siblingTotal} {t('links_word')}
+            </Text>
+
+            <TouchableOpacity
+              style={[styles.navBtn, !onNext && styles.navBtnDisabled]}
+              onPress={onNext}
+              disabled={!onNext}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+              <Text style={[styles.navBtnText, !onNext && styles.navBtnTextDisabled]}>›</Text>
+            </TouchableOpacity>
           </View>
         )}
       </ScrollView>
@@ -196,8 +232,7 @@ const styles = StyleSheet.create({
     fontFamily: 'Cinzel_400Regular',
     fontSize: 9,
     color: COLORS.inkDim,
-    letterSpacing: 1,
-    width: 64,
+    letterSpacing: 0.5,
   },
   scoreBarBg: {
     flex: 1,
@@ -216,6 +251,45 @@ const styles = StyleSheet.create({
     fontSize: 10,
     width: 34,
     textAlign: 'right',
+  },
+
+  // ── Pair navigation ───────────────────────────────────────────────────
+  navRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 12,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: COLORS.separatorFaint,
+  },
+  navBtn: {
+    width: 32, height: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(201,168,76,0.4)',
+    borderRadius: 16,
+    backgroundColor: 'rgba(201,168,76,0.06)',
+  },
+  navBtnDisabled: {
+    borderColor: 'rgba(201,168,76,0.15)',
+    backgroundColor: 'transparent',
+  },
+  navBtnText: {
+    fontFamily: 'Cinzel_400Regular',
+    fontSize: 18,
+    color: COLORS.gold,
+    lineHeight: 22,
+  },
+  navBtnTextDisabled: {
+    color: COLORS.inkDim,
+    opacity: 0.3,
+  },
+  navCounter: {
+    fontFamily: 'EBGaramond_400Regular',
+    fontSize: 12,
+    color: COLORS.inkDim,
   },
 });
 
