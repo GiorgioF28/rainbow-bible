@@ -46,6 +46,14 @@ export interface Strings {
   // ChapterView
   no_connections:     string;
   text_no_expl:       string;
+  mode_by_chapter:    string;
+  mode_by_verse:      string;
+  chapter_word:       string;
+  chapter_abbr:       string;
+  verse_order_badge:  string;
+  sort_by:            string;
+  sort_score_option:  string;
+  sort_verse_option:  string;
 
   // LoadingScreen
   loading_subtitle:   string;
@@ -92,6 +100,14 @@ const ALL: Record<LangCode, Strings> = {
 
     no_connections:     'Nessun collegamento trovato.',
     text_no_expl:       'Testo disponibile · nessuna spiegazione',
+    mode_by_chapter:    'Per Capitolo',
+    mode_by_verse:      'Per Versetto',
+    chapter_word:       'Capitolo',
+    chapter_abbr:       'Cap.',
+    verse_order_badge:  'ord. versetto',
+    sort_by:            'Ordina per',
+    sort_score_option:  '% Percentuale rilevanza',
+    sort_verse_option:  'Ordine versetto (1:1, 1:2…)',
 
     loading_subtitle:   'Connessioni nella Parola di Dio',
   },
@@ -136,6 +152,14 @@ const ALL: Record<LangCode, Strings> = {
 
     no_connections:     'No connections found.',
     text_no_expl:       'Text available · no explanation',
+    mode_by_chapter:    'By Chapter',
+    mode_by_verse:      'By Verse',
+    chapter_word:       'Chapter',
+    chapter_abbr:       'Ch.',
+    verse_order_badge:  'verse order',
+    sort_by:            'Sort by',
+    sort_score_option:  '% Relevance score',
+    sort_verse_option:  'Verse order (1:1, 1:2…)',
 
     loading_subtitle:   'Connections in the Word of God',
   },
@@ -180,6 +204,14 @@ const ALL: Record<LangCode, Strings> = {
 
     no_connections:     'No se encontraron conexiones.',
     text_no_expl:       'Texto disponible · sin explicación',
+    mode_by_chapter:    'Por Capítulo',
+    mode_by_verse:      'Por Versículo',
+    chapter_word:       'Capítulo',
+    chapter_abbr:       'Cap.',
+    verse_order_badge:  'orden versículo',
+    sort_by:            'Ordenar por',
+    sort_score_option:  '% Puntuación de relevancia',
+    sort_verse_option:  'Orden versículo (1:1, 1:2…)',
 
     loading_subtitle:   'Conexiones en la Palabra de Dios',
   },
@@ -224,6 +256,14 @@ const ALL: Record<LangCode, Strings> = {
 
     no_connections:     'Aucune connexion trouvée.',
     text_no_expl:       'Texte disponible · sans explication',
+    mode_by_chapter:    'Par Chapitre',
+    mode_by_verse:      'Par Verset',
+    chapter_word:       'Chapitre',
+    chapter_abbr:       'Ch.',
+    verse_order_badge:  'ordre verset',
+    sort_by:            'Trier par',
+    sort_score_option:  '% Score de pertinence',
+    sort_verse_option:  'Ordre du verset (1:1, 1:2…)',
 
     loading_subtitle:   'Connexions dans la Parole de Dieu',
   },
@@ -268,6 +308,14 @@ const ALL: Record<LangCode, Strings> = {
 
     no_connections:     'لم يتم العثور على روابط.',
     text_no_expl:       'النص متاح · لا يوجد شرح',
+    mode_by_chapter:    'حسب الإصحاح',
+    mode_by_verse:      'حسب الآية',
+    chapter_word:       'الإصحاح',
+    chapter_abbr:       'إصح.',
+    verse_order_badge:  'ترتيب الآية',
+    sort_by:            'ترتيب حسب',
+    sort_score_option:  '٪ درجة الصلة',
+    sort_verse_option:  'ترتيب الآية (1:1، 1:2…)',
 
     loading_subtitle:   'الروابط في كلمة الله',
   },
@@ -312,6 +360,14 @@ const ALL: Record<LangCode, Strings> = {
 
     no_connections:     '未找到联系。',
     text_no_expl:       '文本可用 · 无解释',
+    mode_by_chapter:    '按章',
+    mode_by_verse:      '按节',
+    chapter_word:       '章',
+    chapter_abbr:       '章',
+    verse_order_badge:  '按节顺序',
+    sort_by:            '排序',
+    sort_score_option:  '% 相关度',
+    sort_verse_option:  '按节顺序 (1:1, 1:2…)',
 
     loading_subtitle:   '上帝话语中的联系',
   },
@@ -356,6 +412,14 @@ const ALL: Record<LangCode, Strings> = {
 
     no_connections:     '接続が見つかりません。',
     text_no_expl:       'テキストあり · 解説なし',
+    mode_by_chapter:    '章ごと',
+    mode_by_verse:      '節ごと',
+    chapter_word:       '章',
+    chapter_abbr:       '章',
+    verse_order_badge:  '節順',
+    sort_by:            '並び替え',
+    sort_score_option:  '% 関連度スコア',
+    sort_verse_option:  '節順 (1:1, 1:2…)',
 
     loading_subtitle:   '神の言葉の中の接続',
   },

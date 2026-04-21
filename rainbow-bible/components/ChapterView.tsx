@@ -21,7 +21,7 @@ import {
 } from '../utils/database';
 import DetailPanel from './DetailPanel';
 import { useLang } from '../contexts/LangContext';
-import { t, sectionLabel } from '../i18n';
+import { t, sectionLabel, bookName } from '../i18n';
 
 interface Props {
   bookId:    string;
@@ -46,7 +46,7 @@ type SortMode = 'score' | 'verse';
 interface VerseInfo { ch: number; vs: number; cnt: number }
 
 const ChapterView: React.FC<Props> = ({ bookId, sectionId, onBack }) => {
-  useLang(); // re-render on language change
+  const { lang } = useLang(); // re-render + refetch on language change
   const book    = BOOKS.find(b => b.id === bookId);
   const section = SECTIONS.find(s => s.id === sectionId);
 
@@ -85,7 +85,7 @@ const ChapterView: React.FC<Props> = ({ bookId, sectionId, onBack }) => {
       setConnections(conns);
       setLoading(false);
     }).catch(() => setLoading(false));
-  }, [bookId]);
+  }, [bookId, lang]);
 
   // Quando cambia la modalità (chapter ↔ verse), ricarica nell'ordine giusto
   useEffect(() => {
@@ -186,15 +186,15 @@ const ChapterView: React.FC<Props> = ({ bookId, sectionId, onBack }) => {
       <View style={styles.header}>
         <TouchableOpacity style={styles.backBtn} onPress={onBack}
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-          <Text style={styles.backBtnText}>‹ {book.name}</Text>
+          <Text style={styles.backBtnText}>‹ {bookName(book.id)}</Text>
         </TouchableOpacity>
         <View style={styles.headerCenter}>
           <Text style={styles.headerTitle}>
-            {book.name}{selectedChapter ? ` · Cap. ${selectedChapter}` : ''}
+            {bookName(book.id)}{selectedChapter ? ` · ${t('chapter_abbr')} ${selectedChapter}` : ''}
             {selectedVerse ? ` : ${selectedVerse.vs}` : ''}
           </Text>
           <Text style={styles.headerSub}>
-            {loading ? '…' : `${(mode === 'verse' && selectedVerse ? displayConnections.length : totalCount).toLocaleString()} collegamenti`}
+            {loading ? '…' : `${(mode === 'verse' && selectedVerse ? displayConnections.length : totalCount).toLocaleString()} ${t('links_word')}`}
           </Text>
         </View>
         {/* Gear icon */}
@@ -213,14 +213,14 @@ const ChapterView: React.FC<Props> = ({ bookId, sectionId, onBack }) => {
             style={[styles.modeTab, mode === m && styles.modeTabActive]}
             onPress={() => setMode(m)}>
             <Text style={[styles.modeTabText, mode === m && styles.modeTabTextActive]}>
-              {m === 'chapter' ? 'Per Capitolo' : 'Per Versetto'}
+              {m === 'chapter' ? t('mode_by_chapter') : t('mode_by_verse')}
             </Text>
           </TouchableOpacity>
         ))}
         {/* Sort badge */}
         {mode === 'chapter' && sortMode === 'verse' && (
           <View style={styles.sortBadge}>
-            <Text style={styles.sortBadgeText}>ord. versetto</Text>
+            <Text style={styles.sortBadgeText}>{t('verse_order_badge')}</Text>
           </View>
         )}
       </View>
@@ -230,7 +230,7 @@ const ChapterView: React.FC<Props> = ({ bookId, sectionId, onBack }) => {
         <View style={styles.chartContainer}>
           {selectedChapter !== null && (
             <Text style={styles.chartLabel}>
-              Capitolo {selectedChapter} · {chapterCounts[selectedChapter] ?? 0} collegamenti
+              {t('chapter_word')} {selectedChapter} · {chapterCounts[selectedChapter] ?? 0} {t('links_word')}
             </Text>
           )}
           <ScrollView horizontal showsHorizontalScrollIndicator={false}
@@ -371,13 +371,13 @@ const ChapterView: React.FC<Props> = ({ bookId, sectionId, onBack }) => {
         onRequestClose={() => setShowFilterMenu(false)}>
         <Pressable style={styles.modalBackdrop} onPress={() => setShowFilterMenu(false)}>
           <View style={styles.filterMenu}>
-            <Text style={styles.filterMenuTitle}>Ordina per</Text>
+            <Text style={styles.filterMenuTitle}>{t('sort_by')}</Text>
             {(['score', 'verse'] as SortMode[]).map(s => (
               <TouchableOpacity key={s}
                 style={[styles.filterOption, sortMode === s && styles.filterOptionActive]}
                 onPress={() => { setSortMode(s); handleSortChange(s); }}>
                 <Text style={[styles.filterOptionText, sortMode === s && { color: COLORS.gold }]}>
-                  {s === 'score' ? '% Percentuale rilevanza' : 'Ordine versetto (1:1, 1:2…)'}
+                  {s === 'score' ? t('sort_score_option') : t('sort_verse_option')}
                 </Text>
                 {sortMode === s && <Text style={styles.filterCheckmark}>✓</Text>}
               </TouchableOpacity>

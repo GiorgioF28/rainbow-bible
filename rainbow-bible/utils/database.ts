@@ -8,7 +8,7 @@ import { supabase } from './supabase';
 import { BOOKS } from '../data/books';
 import { SECTIONS } from '../data/sections';
 import { Connection, FilterType } from '../data/types';
-import { bookName as i18nBookName } from '../i18n';
+import { bookName as i18nBookName, getLang } from '../i18n';
 
 // ── Costanti ──────────────────────────────────────────────────────────────
 export const PAGE_SIZE = 400;
@@ -46,6 +46,88 @@ function inferColor(fromBook: string, toBook: string): string {
 
 function formatRef(bookId: string, ch: number, vs: number): string {
   return `${i18nBookName(bookId)} ${ch}:${vs}`;
+}
+
+// ── Traduzione testi versetti ─────────────────────────────────────────────
+// Per lingue diverse da 'it' sostituisce textA/textB con la versione tradotta
+// (RPC `get_translated_verse_texts` fa JOIN su verse_texts per version_id).
+// Se una traduzione manca, mantiene il testo originale come fallback.
+const LANG_TO_VERSION: Record<string, string> = {
+  en: 'WEB', es: 'RV1909', fr: 'LSG',
+  ar: 'VD',  zh: 'CUV',    ja: 'KJY',
+};
+
+async function applyVerseTextTranslations(conns: Connection[]): Promise<Connection[]> {
+  const lang    = getLang();
+  const version = LANG_TO_VERSION[lang];
+  if (!version || conns.length === 0) return conns;
+
+  const ids = conns.map(c => c.id);
+  const { data, error } = await supabase.rpc('get_translated_verse_texts', {
+    p_conn_ids:   ids,
+    p_version_id: version,
+  });
+
+  if (error) {
+    console.warn('[get_translated_verse_texts]', error.message);
+    return conns;
+  }
+
+  const map = new Map<number, { text_from: string | null; text_to: string | null }>();
+  for (const r of (data ?? [])) {
+    map.set(r.connection_id, { text_from: r.text_from, text_to: r.text_to });
+  }
+
+  return conns.map(c => {
+    const tr = map.get(c.id);
+    if (!tr) return c;
+    return {
+      ...c,
+      textA: tr.text_from ?? c.textA,
+      textB: tr.text_to   ?? c.textB,
+    };
+  });
+}
+
+// ── Traduzione spiegazioni ────────────────────────────────────────────────
+// Per lingue diverse da 'it' carica da `explanation_translations`.
+// Se manca la traduzione, nasconde la spiegazione (hasExplanation=false).
+async function applyExplanationTranslations(conns: Connection[]): Promise<Connection[]> {
+  const lang = getLang();
+  if (lang === 'it') return conns;
+
+  const ids = conns.filter(c => c.hasExplanation).map(c => c.id);
+  if (ids.length === 0) return conns;
+
+  const { data, error } = await supabase
+    .from('explanation_translations')
+    .select('connection_id, title, body, link_type, author_a, author_b, period')
+    .eq('lang', lang)
+    .in('connection_id', ids);
+
+  if (error) {
+    console.warn('[explanation_translations]', error.message);
+    return conns.map(c => (c.hasExplanation ? { ...c, hasExplanation: false, explanation: '' } : c));
+  }
+
+  const map = new Map<number, any>();
+  for (const t of (data ?? [])) map.set(t.connection_id, t);
+
+  return conns.map(c => {
+    if (!c.hasExplanation) return c;
+    const tr = map.get(c.id);
+    if (tr && tr.body) {
+      return {
+        ...c,
+        explanation: tr.body,
+        author_a:    tr.author_a  ?? '',
+        author_b:    tr.author_b  ?? '',
+        period:      tr.period    ?? '',
+        link_type:   tr.link_type ?? '',
+      };
+    }
+    return { ...c, hasExplanation: false, explanation: '', author_a: '', author_b: '', period: '', link_type: '' };
+  });
 }
 
 function rowToConnection(row: any): Connection {
@@ -125,7 +207,9 @@ export async function getConnectionsForBook(
     p_offset:           offset,
   });
   if (error) throw new Error(error.message);
-  return (data ?? []).map(rowToConnection);
+  const conns = (data ?? []).map(rowToConnection);
+  const withText = await applyVerseTextTranslations(conns);
+  return applyExplanationTranslations(withText);
 }
 
 /** Totale connessioni per un libro (con filtro sezione opzionale). */
@@ -173,7 +257,9 @@ export async function getConnectionsForChapter(
     p_order_by: orderBy,
   });
   if (error) throw new Error(error.message);
-  return (data ?? []).map(rowToConnection);
+  const conns = (data ?? []).map(rowToConnection);
+  const withText = await applyVerseTextTranslations(conns);
+  return applyExplanationTranslations(withText);
 }
 
 /** Totale connessioni per capitolo. */
@@ -226,5 +312,8 @@ export async function getConnectionById(id: number): Promise<Connection | null> 
   const { data, error } = await supabase.rpc('get_connection_by_id', { p_id: id });
   if (error) throw new Error(error.message);
   const row = (data ?? [])[0];
-  return row ? rowToConnection(row) : null;
+  if (!row) return null;
+  const withText = await applyVerseTextTranslations([rowToConnection(row)]);
+  const [translated] = await applyExplanationTranslations(withText);
+  return translated;
 }

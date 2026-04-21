@@ -24,6 +24,7 @@ import { Connection, FilterType } from '../data/types';
 import { bookX, MARGIN_L } from '../utils/arcGeometry';
 import { getArcOpacity, getArcStrokeWidth } from '../utils/filters';
 import { COLORS } from '../theme/colors';
+import { bookName } from '../i18n';
 import ArcPath from './ArcPath';
 
 // ── Constants ──────────────────────────────────────────────────────────────
@@ -161,7 +162,7 @@ const ArcVisualization: React.FC<ArcVisualizationProps> = ({
                   transform={`rotate(-65, ${x}, ${baseline + 8})`}
                   opacity={focusBookId && !isConnected && !isFocused ? 0.2 : 1}
                 >
-                  {book.name}
+                  {bookName(book.id)}
                 </SvgText>
               </G>
             );

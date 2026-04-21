@@ -9,7 +9,7 @@ import { SECTIONS } from '../data/sections';
 import { COLORS } from '../theme/colors';
 import { getConnectionCountsForBooks } from '../utils/database';
 import { useLang } from '../contexts/LangContext';
-import { t, sectionLabel } from '../i18n';
+import { t, sectionLabel, bookName } from '../i18n';
 
 interface Props {
   sectionId: string;
@@ -91,7 +91,7 @@ const SectionBooksPage: React.FC<Props> = ({ sectionId, onBookPress, onBack }) =
                 <Text
                   style={[styles.bookName, { color: active ? section.color : COLORS.inkDim }]}
                   numberOfLines={2}>
-                  {book.name}
+                  {bookName(book.id)}
                 </Text>
                 {label !== null ? (
                   <View style={[styles.countBadge, { borderColor: section.color + '50' }]}>

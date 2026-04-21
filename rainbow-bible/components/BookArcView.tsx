@@ -23,7 +23,7 @@ import ArcVisualization, { ARC_VIZ_W, LABEL_AREA } from './ArcVisualization';
 import ArcTouchLayer from './ArcTouchLayer';
 import DetailPanel from './DetailPanel';
 import { useLang } from '../contexts/LangContext';
-import { t, sectionLabel } from '../i18n';
+import { t, sectionLabel, bookName } from '../i18n';
 
 interface Props {
   bookId:          string;
@@ -33,7 +33,7 @@ interface Props {
 }
 
 const BookArcView: React.FC<Props> = ({ bookId, sectionId, onBack, onChapterPress }) => {
-  useLang(); // re-render on language change
+  const { lang } = useLang(); // re-render + refetch on language change
   const book    = BOOKS.find(b => b.id === bookId);
   const section = SECTIONS.find(s => s.id === sectionId);
 
@@ -90,7 +90,7 @@ const BookArcView: React.FC<Props> = ({ bookId, sectionId, onBack, onChapterPres
         setLoading(false);
       })
       .catch(() => setLoading(false));
-  }, [bookId, sectionFilter, page]);
+  }, [bookId, sectionFilter, page, lang]);
 
   const selectedConnection = useMemo(
     () => (selectedId !== null ? connections.find(c => c.id === selectedId) ?? null : null),
@@ -156,7 +156,7 @@ const BookArcView: React.FC<Props> = ({ bookId, sectionId, onBack, onChapterPres
         <View style={styles.headerCenter}>
           <Text style={styles.headerLabel}>{t('connections')}</Text>
           <Text style={[styles.headerBook, { color: section.color }]}>
-            {book.name.toUpperCase()}
+            {bookName(book.id).toUpperCase()}
           </Text>
 
           {!loading && (
